@@ -12,6 +12,7 @@ var upgrader = websocket.Upgrader{
     ReadBufferSize:  1024,
     WriteBufferSize: 1024,
 }
+var clients = make(map[*websocket.Conn]bool) // connected clients
 
 func handler(w http.ResponseWriter, r *http.Request) {
 	// Simple http request
@@ -32,8 +33,11 @@ func wsEndpoint(w http.ResponseWriter, r *http.Request) {
     // helpful log statement to show connections
     log.Println("Client Connected")
     log.Println("Client Connected",ws)
+    err = ws.WriteMessage(1, []byte("Hi Client!"))
 
     listen(ws) // listen on the created websocket
+	clients[ws]=true
+	
 }
 
 
@@ -54,9 +58,13 @@ func listen(conn *websocket.Conn){
 	}	
 }
 
+
+func ping(conn *websocket.Conn){
+	// send ping to all connected clients
+}
 func main() {
-	fmt.Printf("hello, world\n")
+	fmt.Printf("this is the pinging machine\n")
 	http.HandleFunc("/", handler)
 	http.HandleFunc("/ws", wsEndpoint)
-	log.Fatal(http.ListenAndServe(":8000", nil))
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
