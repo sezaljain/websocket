@@ -43,6 +43,13 @@ func listen(conn *websocket.Conn){
 	for { //infinite loop to keep listening until program is terminated
 		messageType, p, err := conn.ReadMessage()
 		fmt.Println(string(p))
+		if err!=nil{
+			log.Println(err)
+		}
+		if err := conn.WriteMessage(messageType, p); err != nil {
+            log.Println(err)
+            return
+        }
 
 	}	
 }
