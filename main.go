@@ -57,6 +57,10 @@ func listen(conn *websocket.Conn){
 		fmt.Println(string(p))
 		if err!=nil{
 			log.Println(err)
+			conn.Close()
+			delete(clients,conn)
+			log.Println("Closing client connection",conn)
+			return
 		}
 		client_status := clients[conn]
 		if client_status.connected == false {
@@ -78,7 +82,7 @@ func listen(conn *websocket.Conn){
 
 func ping_all_clients(){
 	//setting up timer interval of 30 seconds
-	ticker := time.NewTicker(10*time.Second)
+	ticker := time.NewTicker(1*time.Second)
 
 	for {
 		select{
