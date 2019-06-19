@@ -140,6 +140,7 @@ func ping_all_clients(){
 func handler(w http.ResponseWriter, r *http.Request) {
 	// Simple http request
     fmt.Fprintf(w, "Hi there, I love %s!", r.URL.Path[1:])
+    log.Println(w, "Hi there, I love %s!", r.URL.Path[1:])
 }
 
 func main() {
