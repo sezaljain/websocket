@@ -16,15 +16,16 @@ type Client struct {
 
 }
 
-type ClientStatus struct{
-	last_ping_time time.Time
-	connected bool
-}
+// type ClientStatus struct{
+// 	last_ping_time time.Time
+// 	connected bool
+// }
 var upgrader = websocket.Upgrader{
     ReadBufferSize:  1024,
     WriteBufferSize: 1024,
 }
 var clients = make(map[Client]bool) // connected clients
+var clients_ping_time = make(map[Client]time.Time) // connected clients
 
 func handler(w http.ResponseWriter, r *http.Request) {
 	// Simple http request
@@ -48,8 +49,10 @@ func wsEndpoint(w http.ResponseWriter, r *http.Request) {
     err = ws.WriteMessage(1, []byte("Hi Client!"))
 
     go listen(ws) // listen on the created websocket in a goroutine
-	// client := 
-	clients[Client{ws,1234}]=true
+	client := Client{ws,1234}
+	
+	clients[client]=true
+	clients_ping_time[client]=time.Time{}
 	log.Println(clients)
 	log.Println("-----------------")
 	
@@ -86,6 +89,9 @@ func ping_all_clients(){
 		select{
 			case  t:=<- ticker.C:
 				//ticker channel go a new value (30s ticker went off)
+				for _,time :=range clients_ping_time{
+					fmt.Println(time,t)
+				}
 				for client,connected := range clients{
 					if connected{
 						// check connected clients and send ping
