@@ -5,8 +5,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
-	"time"
-	// "math/rand"
+	// "time"
 	"github.com/gorilla/websocket"
 )
 
@@ -44,7 +43,7 @@ func main(){
 				return
 			}
 			if string(message)=="PING"{
-				time.Sleep(6*time.Second)
+				// time.Sleep(6*time.Second)
 				if err := c.WriteMessage(messageType, []byte("PONG")); err != nil {
 		            return
 		        }
