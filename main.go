@@ -5,25 +5,34 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+	"math/rand"
 	"github.com/gorilla/websocket"
 )
 
 type ClientStatus struct{
 	last_ping_time time.Time
 	connected bool
-   	client_id int
+   	client_id string
 }
+
+var clients = make(map[*websocket.Conn] ClientStatus) // connected clients\
+
+
 var upgrader = websocket.Upgrader{
     ReadBufferSize:  1024,
     WriteBufferSize: 1024,
 }
-var clients = make(map[*websocket.Conn] ClientStatus) // connected clients\
 
-func handler(w http.ResponseWriter, r *http.Request) {
-	// Simple http request
-    fmt.Fprintf(w, "Hi there, I love %s!", r.URL.Path[1:])
+
+
+func randomString(len int) string {
+	rand.Seed(time.Now().UnixNano())
+    bytes := make([]byte, len)
+    for i := 0; i < len; i++ {
+        bytes[i] = byte(rand.Intn(25)+65)
+    }
+    return string(bytes)
 }
-
 
 func wsEndpoint(w http.ResponseWriter, r *http.Request) {
 	// Request on ws endpoint
@@ -42,9 +51,8 @@ func wsEndpoint(w http.ResponseWriter, r *http.Request) {
 
 
     go listen(ws) // listen on the created websocket in a goroutine
-	
-	clients[ws]=ClientStatus{time.Time{},true,1234}
-	log.Println(clients)
+	clients[ws]=ClientStatus{time.Time{},true,randomString(6)}
+	// log.Println(clients)
 	
 }
 
@@ -54,7 +62,6 @@ func listen(conn *websocket.Conn){
 	//taking it directly from an example
 	for { //infinite loop to keep listening until program is terminated
 		_, p, err := conn.ReadMessage()
-		fmt.Println(string(p))
 		if err!=nil{
 			log.Println(err)
 			conn.Close()
@@ -72,8 +79,11 @@ func listen(conn *websocket.Conn){
 				conn.Close()
 		} else {
 			// if p == "PONG"
-			client_status.last_ping_time = time.Time{} // resetting timer
-			clients[conn] = client_status
+			fmt.Println(string(p),"from client #",client_status.client_id)
+			if string(p)=="PONG"{
+				client_status.last_ping_time = time.Time{} // resetting timer
+				clients[conn] = client_status
+			}
 		}
 
 	}	
@@ -114,6 +124,11 @@ func ping_all_clients(){
 	// ping sent to all connected clients
 }
 
+func handler(w http.ResponseWriter, r *http.Request) {
+	// Simple http request
+    fmt.Fprintf(w, "Hi there, I love %s!", r.URL.Path[1:])
+}
+
 func main() {
 	fmt.Printf("this is the pinging machine\n")
 	http.HandleFunc("/", handler)
@@ -123,33 +138,3 @@ func main() {
 	log.Fatal(http.ListenAndServe(":8080", nil))
 
 }
-
-
-// func ping_all_clients(){z
-// 	md:=make(chan)
-// }
-
-// //a client can join at any time. every 30 s it should receive a ping
-// // get request for all connected clients (so http handler should be functional)
-// func tick(out chan <- [2]float64){
-
-//     c := time.NewTicker(time.Millisecond *500)
-//     for range c.C{
-//         out <- mark
-//     }
-// }
-
-// func main() {
-
-//     fmt.Println("Start")
-
-//     md := make(chan [2]float64)
-//     go tick(md)
-
-//     for range <-md{
-//         fmt.Println(<-md)
-//     }
-// }
-
-// setup webscoket, add clients to a list
-// keep listening to messages, identify with a client
