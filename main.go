@@ -16,16 +16,17 @@ type Client struct {
 
 }
 
-// type ClientStatus struct{
-// 	last_ping_time time.Time
-// 	connected bool
-// }
+type ClientStatus struct{
+	last_ping_time time.Time
+	// ping_timer time.NewTimer
+	// last_pong_time time.Time
+	connected bool
+}
 var upgrader = websocket.Upgrader{
     ReadBufferSize:  1024,
     WriteBufferSize: 1024,
 }
-var clients = make(map[Client]bool) // connected clients
-var clients_ping_time = make(map[Client]time.Time) // connected clients
+var clients = make(map[Client] ClientStatus) // connected clients\
 
 func handler(w http.ResponseWriter, r *http.Request) {
 	// Simple http request
@@ -51,9 +52,10 @@ func wsEndpoint(w http.ResponseWriter, r *http.Request) {
     go listen(ws) // listen on the created websocket in a goroutine
 	client := Client{ws,1234}
 	
-	clients[client]=true
-	clients_ping_time[client]=time.Time{}
+	clients[client]=ClientStatus{time.Time{},true}
+	// clients_ping_time[client]=
 	log.Println(clients)
+	// log.Println(clients_ping_time)
 	log.Println("-----------------")
 	
 }
@@ -83,17 +85,29 @@ func listen(conn *websocket.Conn){
 func ping_all_clients(){
 	fmt.Println("starting")
 	//setting up timer interval of 30 seconds
-	ticker := time.NewTicker(30*time.Second)
+	ticker := time.NewTicker(10*time.Second)
 
 	for {
 		select{
 			case  t:=<- ticker.C:
 				//ticker channel go a new value (30s ticker went off)
-				for _,time :=range clients_ping_time{
-					fmt.Println(time,t)
-				}
-				for client,connected := range clients{
-					if connected{
+				// can save outgoing ping time in struct, or can setup a 5 sec timer
+				// which can be stopped (in case of pong) or expire(resulting in disconnection)
+
+				// for _,time :=range clients_ping_time{
+				// 	fmt.Println("------",time,t)
+				// }
+				fmt.Println(t.String())
+				fmt.Println(clients)
+				for client,status := range clients{
+					fmt.Println("connected",status.connected,status)
+					if status.connected{
+						if status.last_ping_time.Add(5*time.Second).Before(time.Now()) && !status.last_ping_time.IsZero(){
+							status.connected = false
+							clients[client]=status
+							client.conn.Close()
+							continue
+						}
 						// check connected clients and send ping
 						// fmt.Println(client,connected)	
 						err := client.conn.WriteMessage(websocket.TextMessage, []byte("PING"))
@@ -101,6 +115,8 @@ func ping_all_clients(){
 				            log.Println(err)
 				            return
 				        }
+				        status.last_ping_time = t
+				        clients[client] = status
 					}
 					
 				}
