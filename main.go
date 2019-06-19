@@ -46,8 +46,8 @@ func wsEndpoint(w http.ResponseWriter, r *http.Request) {
         log.Println(err)
     }
     // helpful log statement to show connections
-    log.Println("New Client Connected")
     s:=randomString(6)
+    log.Println("New Client Connected #"+s)
     err = ws.WriteMessage(1, []byte("Hi Client #"+s+"!"))
 
 
@@ -57,34 +57,46 @@ func wsEndpoint(w http.ResponseWriter, r *http.Request) {
 	
 }
 
+func close_client_connection(conn *websocket.Conn){
+	conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+	client_status := clients[conn]
+	client_status.connected = false
+	clients[conn] = client_status
+	// delete(clients,conn)
+}
 
 func listen(conn *websocket.Conn){
+	
 	//continously listens to all incoming messages for the websocket
 	//taking it directly from an example
 	for { //infinite loop to keep listening until program is terminated
+		
 		_, p, err := conn.ReadMessage()
 		if err!=nil{
 			log.Println(err)
-			conn.Close()
-			delete(clients,conn)
 			log.Println("Closing client connection")
 			return
 		}
 		client_status := clients[conn]
+		// log.Println(client_status)
+		// log.Println(client_status.last_ping_time.Add(5*time.Second).Before(time.Now()),client_status.last_ping_time.IsZero())
 		if client_status.connected == false {
 			conn.Close()
-			continue
+			return
 		} else if client_status.last_ping_time.Add(5*time.Second).Before(time.Now()) && !client_status.last_ping_time.IsZero(){
-				client_status.connected = false
-				clients[conn] = client_status
-				conn.Close()
+			// more than 5 seconds passed since last ping
+			log.Println(string(p),"from client #",client_status.client_id)
+			log.Println("Disconnecting as its been more than 5 seconds since ping")
+			close_client_connection(conn)
+			return
 		} else {
-			// if p == "PONG"
-			fmt.Println(string(p),"from client #",client_status.client_id)
-			if string(p)=="PONG"{
-				client_status.last_ping_time = time.Time{} // resetting timer
-				clients[conn] = client_status
-			}
+			// Only this part of the if-else statements can have no return .. all others should end this goroutine
+			continue
+			// log.Println(string(p),"from client! #",client_status.client_id)
+			// if string(p)=="PONG"{
+			// 	client_status.last_ping_time = time.Time{} // resetting timer
+			// 	clients[conn] = client_status
+			// }
 		}
 
 	}	
@@ -93,7 +105,7 @@ func listen(conn *websocket.Conn){
 
 func ping_all_clients(){
 	//setting up timer interval of 30 seconds
-	ticker := time.NewTicker(1*time.Second)
+	ticker := time.NewTicker(10*time.Second)
 
 	for {
 		select{
@@ -131,8 +143,8 @@ func handler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	fmt.Printf("this is the pinging machine\n")
-	http.HandleFunc("/", handler)
+	log.Printf("this is the pinging machine\n")
+	http.HandleFunc("/clients", handler)
 	http.HandleFunc("/ws", wsEndpoint)
 	go ping_all_clients()
 

@@ -5,7 +5,8 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
-
+	"time"
+	// "math/rand"
 	"github.com/gorilla/websocket"
 )
 
@@ -23,7 +24,7 @@ func main(){
 
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
-		log.Fatal("dial:", err)
+		log.Fatal("connection errror:", err)
 	}
 
 	//closing websocket if the program is terminated
@@ -38,15 +39,17 @@ func main(){
 		for {
 			messageType, message, err := c.ReadMessage()
 			if err != nil {
-				log.Println("read:", err)
+				log.Println("error in read:", err)
+				// c.Close()
 				return
 			}
 			if string(message)=="PING"{
+				time.Sleep(6*time.Second)
 				if err := c.WriteMessage(messageType, []byte("PONG")); err != nil {
 		            return
 		        }
 		    }
-			log.Printf("recv: %s", message)
+			log.Printf(string(message))
 		}
 	}()
 
@@ -54,6 +57,11 @@ func main(){
 	for {
 		select {
 		case <-done:
+			err := c.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+			if err != nil {
+				log.Println("write close:", err)
+				return
+			}
 			// websocket listener stopped due to error in readmessage
 			return
 		case <-interrupt:
