@@ -37,7 +37,7 @@ func wsEndpoint(w http.ResponseWriter, r *http.Request) {
         log.Println(err)
     }
     // helpful log statement to show connections
-    log.Println("New Client Connected",ws)
+    log.Println("New Client Connected")
     err = ws.WriteMessage(1, []byte("Hi Client!"))
 
 
@@ -59,7 +59,7 @@ func listen(conn *websocket.Conn){
 			log.Println(err)
 			conn.Close()
 			delete(clients,conn)
-			log.Println("Closing client connection",conn)
+			log.Println("Closing client connection")
 			return
 		}
 		client_status := clients[conn]
@@ -91,7 +91,6 @@ func ping_all_clients(){
 				//will save outgoing ping time in client status struct
 
 				for client,status := range clients{
-					fmt.Println("connected",status.connected,status)
 					if status.connected{
 						if status.last_ping_time.Add(5*time.Second).Before(time.Now()) && !status.last_ping_time.IsZero(){
 							status.connected = false
