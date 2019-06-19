@@ -9,8 +9,6 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// var addr = flag.String("addr", "localhost:8080", "http service address")
-
 
 func main(){
 
@@ -59,13 +57,8 @@ func main(){
 			// websocket listener stopped due to error in readmessage
 			return
 		case <-interrupt:
-		// 	close(done)
-		// // 	log.Println("interrupt")
-		// // 	c.Close()
-		// 	return
-
-		// 	// Cleanly close the connection by sending a close message and then
-		// 	// waiting (with timeout) for the server to close the connection.
+			// Cleanly close the connection by sending a close message and then
+			// waiting (with timeout) for the server to close the connection.
 			err := c.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 			if err != nil {
 				log.Println("write close:", err)
