@@ -3,9 +3,8 @@ package main
 import (
 	"log"
 	"net/url"
-	// "os"
-	// "os/signal"
-	"time"
+	"os"
+	"os/signal"
 
 	"github.com/gorilla/websocket"
 )
@@ -16,9 +15,10 @@ import (
 func main(){
 
 
-	// interrupt := make(chan os.Signal, 1)
-	// signal.Notify(interrupt, os.Interrupt)
-	// fmt.Printf("hello, world\n")
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, os.Interrupt)
+
+
 	u := url.URL{Scheme: "ws", Host: "localhost:8080", Path: "/ws"}
 	log.Printf("connecting to %s", u.String())
 
@@ -38,43 +38,39 @@ func main(){
 		//this is listening to websocket
 		defer close(done)
 		for {
-			_, message, err := c.ReadMessage()
+			messageType, message, err := c.ReadMessage()
 			if err != nil {
 				log.Println("read:", err)
 				return
 			}
+			if string(message)=="PING"{
+				if err := c.WriteMessage(messageType, []byte("PONG")); err != nil {
+		            return
+		        }
+		    }
 			log.Printf("recv: %s", message)
 		}
 	}()
 
-	ticker := time.NewTicker(time.Second)
-	defer ticker.Stop()
 
 	for {
 		select {
 		case <-done:
+			// websocket listener stopped due to error in readmessage
 			return
-		case t := <-ticker.C:
-			err := c.WriteMessage(websocket.TextMessage, []byte(t.String()))
-			if err != nil {
-				log.Println("write:", err)
-				return
-			}
-		// case <-interrupt:
-		// 	log.Println("interrupt")
+		case <-interrupt:
+		// 	close(done)
+		// // 	log.Println("interrupt")
+		// // 	c.Close()
+		// 	return
 
 		// 	// Cleanly close the connection by sending a close message and then
 		// 	// waiting (with timeout) for the server to close the connection.
-		// 	err := c.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-		// 	if err != nil {
-		// 		log.Println("write close:", err)
-		// 		return
-		// 	}
-		// 	select {
-		// 	case <-done:
-		// 	case <-time.After(time.Second):
-		// 	}
-		// 	return
+			err := c.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+			if err != nil {
+				log.Println("write close:", err)
+				return
+			}
 		}
 	}
 }
