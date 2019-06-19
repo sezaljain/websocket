@@ -47,11 +47,12 @@ func wsEndpoint(w http.ResponseWriter, r *http.Request) {
     }
     // helpful log statement to show connections
     log.Println("New Client Connected")
-    err = ws.WriteMessage(1, []byte("Hi Client!"))
+    s:=randomString(6)
+    err = ws.WriteMessage(1, []byte("Hi Client #"+s+"!"))
 
 
     go listen(ws) // listen on the created websocket in a goroutine
-	clients[ws]=ClientStatus{time.Time{},true,randomString(6)}
+	clients[ws]=ClientStatus{time.Time{},true,s}
 	// log.Println(clients)
 	
 }
