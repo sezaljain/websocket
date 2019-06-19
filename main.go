@@ -7,26 +7,17 @@ import (
 	"time"
 	"github.com/gorilla/websocket"
 )
-type Client struct {
-    conn *websocket.Conn
-   	client_id int
-   	// last_ping_time time.Time
-   	// last_pong_time time.Time
-
-
-}
 
 type ClientStatus struct{
 	last_ping_time time.Time
-	// ping_timer time.NewTimer
-	// last_pong_time time.Time
 	connected bool
+   	client_id int
 }
 var upgrader = websocket.Upgrader{
     ReadBufferSize:  1024,
     WriteBufferSize: 1024,
 }
-var clients = make(map[Client] ClientStatus) // connected clients\
+var clients = make(map[*websocket.Conn] ClientStatus) // connected clients\
 
 func handler(w http.ResponseWriter, r *http.Request) {
 	// Simple http request
@@ -36,8 +27,9 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 func wsEndpoint(w http.ResponseWriter, r *http.Request) {
 	// Request on ws endpoint
-    // fmt.Fprintf(w, "Hello World")
     // not worrying about cors etc for now. need to be able to setup the server without looking into security first
+
+    // upgrading http request to websocket
     upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 
     ws, err := upgrader.Upgrade(w, r, nil)
@@ -45,18 +37,14 @@ func wsEndpoint(w http.ResponseWriter, r *http.Request) {
         log.Println(err)
     }
     // helpful log statement to show connections
-    log.Println("Client Connected")
-    log.Println("Client Connected",ws)
+    log.Println("New Client Connected",ws)
     err = ws.WriteMessage(1, []byte("Hi Client!"))
 
+
     go listen(ws) // listen on the created websocket in a goroutine
-	client := Client{ws,1234}
 	
-	clients[client]=ClientStatus{time.Time{},true}
-	// clients_ping_time[client]=
+	clients[ws]=ClientStatus{time.Time{},true,1234}
 	log.Println(clients)
-	// log.Println(clients_ping_time)
-	log.Println("-----------------")
 	
 }
 
@@ -65,25 +53,30 @@ func listen(conn *websocket.Conn){
 	//continously listens to all incoming messages for the websocket
 	//taking it directly from an example
 	for { //infinite loop to keep listening until program is terminated
-		messageType, p, err := conn.ReadMessage()
+		_, p, err := conn.ReadMessage()
 		fmt.Println(string(p))
 		if err!=nil{
 			log.Println(err)
-			// err
 		}
-		if err := conn.WriteMessage(messageType, p); err != nil {
-            // log.Println(err)
-            return
-        }
+		client_status := clients[conn]
+		if client_status.connected == false {
+			conn.Close()
+			continue
+		} else if client_status.last_ping_time.Add(5*time.Second).Before(time.Now()) && !client_status.last_ping_time.IsZero(){
+				client_status.connected = false
+				clients[conn] = client_status
+				conn.Close()
+		} else {
+			// if p == "PONG"
+			client_status.last_ping_time = time.Time{} // resetting timer
+			clients[conn] = client_status
+		}
 
 	}	
 }
 
-// func ping_all_clients() {
-	
-// }
+
 func ping_all_clients(){
-	fmt.Println("starting")
 	//setting up timer interval of 30 seconds
 	ticker := time.NewTicker(10*time.Second)
 
@@ -91,26 +84,19 @@ func ping_all_clients(){
 		select{
 			case  t:=<- ticker.C:
 				//ticker channel go a new value (30s ticker went off)
-				// can save outgoing ping time in struct, or can setup a 5 sec timer
-				// which can be stopped (in case of pong) or expire(resulting in disconnection)
+				//will save outgoing ping time in client status struct
 
-				// for _,time :=range clients_ping_time{
-				// 	fmt.Println("------",time,t)
-				// }
-				fmt.Println(t.String())
-				fmt.Println(clients)
 				for client,status := range clients{
 					fmt.Println("connected",status.connected,status)
 					if status.connected{
 						if status.last_ping_time.Add(5*time.Second).Before(time.Now()) && !status.last_ping_time.IsZero(){
 							status.connected = false
 							clients[client]=status
-							client.conn.Close()
+							client.Close()
 							continue
 						}
 						// check connected clients and send ping
-						// fmt.Println(client,connected)	
-						err := client.conn.WriteMessage(websocket.TextMessage, []byte("PING"))
+						err := client.WriteMessage(websocket.TextMessage, []byte("PING"))
 						if err != nil {
 				            log.Println(err)
 				            return
@@ -122,7 +108,7 @@ func ping_all_clients(){
 				}
 		}
 	}
-	// send ping to all connected clients
+	// ping sent to all connected clients
 }
 
 func main() {

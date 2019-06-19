@@ -57,7 +57,7 @@ func main(){
 		case t := <-ticker.C:
 			err := c.WriteMessage(websocket.TextMessage, []byte(t.String()))
 			if err != nil {
-				// log.Println("write:", err)
+				log.Println("write:", err)
 				return
 			}
 		// case <-interrupt:
